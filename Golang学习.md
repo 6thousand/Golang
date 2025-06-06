@@ -208,8 +208,220 @@ func main(){
 - defer关键字
   用于函数执行完毕后及时释放资源   
   在遇到defer关键字后，会将defer后的语句压入栈中，先执行后面的语句。在函数执行完毕后，从栈中取出语句进行执行。！压入栈时的变量的值保持为压入时的状态！
-  
+- 系统函数：
+  - 字符串函数  
+    - 字符串长度len(str)
+    - 遍历字符串
+      - for-range语句
+    ```
+    for i, value := range str{}
+    fmt.Printf("索引为：%d, 值为%c \n"，i, value)
+    ```
+      - 切片 `r := []rune String`
+    ```
+    for i:=0;i<len(str);i++{
+      fmt.Println(r[i])
+    }
+    ```  
+    - 字符串转整数 `strconv.Atoi` 整数转字符串 `strconv.Itoa`
+    - 统计字符串中有多少指定的字符 `strings.Count("原字符串","目标字符串")`
+    - 不区分大小写的字符串比较 `strings.EqualFold`
+    - 返回在字符串中第一次出现某字符的索引 `strings.Index("字符串"，"字符")` 若无返回-1
+    - 字符串替换 `strings.Replace("原字符串","目标字符串","替换的字符串"n(替换的个数，-1表示全部替换))`
+    - 字符串切割`strings.Split("原字符串"，"切割标识")`->输出字符串数组
+    - 大小写切换`ToUpper, ToLower`
+    - 将字符串左右空格切除`strings.TrimSpace`
+    - 将字符串左右指定字符切除`strings.Trim，strings.TrimLeft，strings.TrimRight`
+    - 检查字符串是否以指定的字符串开头/结尾`strings.HasPrefix，strings.HasSuffix`
+  - 日期函数
+    - `time.now()` 返回time.Time类型的函数
+    - `now.format(2006/01/02 15/04/05)`
+  - 内置函数(不需要导包直接使用)  
+    `new(type) *type`创建内存，实参为数据类型，返回值是一个指针。
 ### 错误处理
 - 错误处理
   - 程序出现错误之后中断，无法继续执行
   - 捕捉机制(defer + recover )
+  ```
+  func test(){
+    defer func(){
+      err:=recover()
+      if err!=nil{
+        fmt.Println("捕获到错误")
+        fmt.Println("错误是"，err)
+      }
+    }()
+    num1 := 10
+    num2 := 0
+    result:= num1/num2
+    fmt.Println(result)
+  }
+  ```
+- 自定义错误: errors.New("错误信息")
+  ```
+  func main(){
+    err :=test()
+    if err!= nil{
+      fmt.Printf("自定义错误"，err)
+    }
+    fmt.Println("程序运行结束")
+  }
+  func new(){
+    num1:=10
+    num2:=0
+    if num2==0{
+      return errors.New("除数不能为0")
+    } else {
+      result = num1/num2
+      fmt.Println(result)
+      return nil //无报错时返回0值
+    }
+  }
+  ```
+### 数组
+  - 数组遍历
+    - for range
+    ```
+    for key(索引) value(索引值) := range coll//key与value都是局部变量
+    {
+      fmt.Printf("第 %d 个的值为 %d",key+1,value)
+    }
+    ```
+  - 数组初始化 
+    ``` 
+    var arr1 [3]int = [3]int(3,6,9)
+    var arr2 = [3]int（1，4，7）
+    var arr3 = [...]int(4,5,6,7)
+    var arr4 = [...]int{2:66,0:33,1:99}//索引：索引值
+    ```
+  - 数组特点:  
+  1.数组的长度也是类型的一部分  
+  2.数组通过值传递，在函数外修改数组值需要用指针
+  - 二维数组及初始化
+  var arr[2][3]int = [2][3]int{{1,4,7},{2,5,8}}
+  - 二维数组遍历
+  ```
+  for key,value :=range arr{
+    for k,v :=range value{
+      fmt.Printf("arr[%v][%v] = %v"key,k,v)
+    }
+  }
+  ```
+### 切片
+- 定义：切片是一个包含三个字段的数据结构：  
+  1.指向底层数组的指针  
+  2.切片的长度  
+  3.切片的容量
+  切片元素个数len, 容量cap
+- 创建切片
+  - `var slice []int = intarr[1:3]//从intarr中索引[1..3)位置切出的片段(左闭右开)` 
+  - `slice:=make([]int,4,20)`数组对外不可见，不能直接访问。必须通过切片才能间接访问元素
+- 切片的注意事项
+  - 1.切片定义后需要给定具体数组才能使用
+  - 2.切片操作不能越界
+  - 3.可以对切片再次切片，更改切片中的值同时会更改对应数组里的值
+- 切片扩容的原理  
+  将老数组扩容为新数组  
+  创建一个新数组，将老数组中的元素复制过去，并在新数组后追加新的元素。  
+  切片也可以append切片
+  `slice = append(slice,slice1...)`
+- 切片拷贝`copy(b,a)`将a中内容拷贝到b
+
+### 映射
+- 基本语法 var map变量名 map[keyType]valueType
+  ```
+  var a map[int]string
+  a = make(map[int]string,10)//创建的映射a能够储存10个键值对
+  ```
+- key 部分不能使用slice, function, map....
+- map 的 key-value是无序的; key不可以重复，如果重复了则新的value会替换掉前一个value
+- 映射的操作
+  - 1.增添/修改
+  - 2.删除 delete(map,key) key存在就删除键值对，不存在也不报错
+  - 3.清空操作：遍历删除/重新新建一个map，自动舍弃掉现有的
+  - 4.查找： value,flag = map[key]
+  - 5.遍历：只能使用for range, 形式与数组相似
+- 映射嵌套
+  ```
+  a :=make(map[string]map[int]string)
+  a["班级1"] = make(map[int]string,2)
+  a["班级1"][20096677] = "小明"
+  a["班级1"][20096678] = "小飞"
+
+  a["班级2"] = make(map[int]string,2)
+  a["班级2"][20096679] = "小亮"
+  a["班级2"][20096680] = "小光"
+  for k1,v1:= range a{
+    fmt.Println(k1)
+    for k2,v2 := range v1{
+      fmt.Printf("学号: %v, 姓名: %v",k2,v2)
+    }
+    fmt.println()
+  }
+  ```
+### 泛型
+- 类型定义中带有类型参数的叫做泛型类型=>定义的类型包含大于一种数据类型
+  `type mySlice[P int | string] []P//类型参数P可以为int 类型或string类型`
+- 声明泛型类型的变量时需要传递真实的数据类型。实例化得到了实际类型的变量
+- ~的使用
+  ```
+  type intSlice[P~int] []P
+  _ = intSlice[int]{}
+  type myInt int
+  type yourInt myInt
+  _ = intSlice[myInt]{}
+  _ = intSlice[yourInt]{}
+  ```
+- 基于泛型类型，继续定义泛型类型
+  ```
+  typr mySlice [T int | string | float32 | float64] []T
+  type myStruct[T float32 |float64 |bool] struct{
+    FieldA mySlice[T]
+  }
+  ```
+  想要定义可以是多个类型的，可以使用interface方式实现
+### 接口
+- 定义
+  接口定义了抽象的类型，只要实现了该方法的类型都可以称为该类型  
+  ```
+  type 接口类型名 interface{
+    方法名1（参数列表1） 返回值列表1
+    方法名2（参数列表2） 返回值列表2
+  }
+  ```
+- 使用值接收者实现接口与使用指针接收者实现接口的区别
+ ```
+ type mover interface(){
+  move()
+ }
+ type person struct{
+  name string
+  age int
+ }
+func (p person) move() {
+  fmt.Printf("%v在跑"，p.name) //  使用值接收者
+ }
+
+func (p *person) move() {
+  fmt.Printf("%v在跑"，p.name) //  使用指针接收者
+ }
+
+func 
+ func main() {
+  var m mover
+  p1 := person{  //使用值接收者
+    name = "小明"，
+    age = 10，
+  }
+    p2 := &person{  //使用值接收者
+    name = "小红"，
+    age = 18，
+  }
+  m = p1
+  m.move()
+  fmt.Println(m)
+ }
+ ```
+  - 一个类型可以实现多个接口，接口之间可以嵌套
+  - 空接口是没有定义任何方法的接口，故任何类型都实现了空接口  
+    因此空接口可以用来储存任何类型的变量(可以结合映射使用)
