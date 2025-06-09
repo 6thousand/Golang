@@ -425,3 +425,293 @@ func
   - 一个类型可以实现多个接口，接口之间可以嵌套
   - 空接口是没有定义任何方法的接口，故任何类型都实现了空接口  
     因此空接口可以用来储存任何类型的变量(可以结合映射使用)
+### 文件操作
+- ```
+  file,err := os.Open(./xx.txt=>相对可执行程序路径下的xx.txt文件)(只读)
+  if err != nil {
+    fmt.Println("错误信息")
+    return
+  }
+  \\读取文件
+  for{
+    var temp = make([]byte,128)
+    n, err :=file.Read(temp)
+    if err == io.EOF{
+      fmt.Println(string(temp[:n]))
+      return
+    }
+    if err!= nil{
+      fmt.Println("%v\n",err)
+      return
+    }
+    fmt.Println("")
+  }
+  defer file.Close()
+  ```     
+  - bufio->在io的基础上封装一层API，支持更多的功能   
+    !!注意，这里写入的数据会保存到缓冲区，需要调用Flush()函数将缓冲区的数据写入文件   
+    使用缓冲区，消耗更多的内存，但是减少了系统调用的次数从而提高性能。       
+
+  ioutil的readflie方法读取整个文件，将文件名作为参数传入
+- 写入文件：OpenFile(name string, flag int, perm filemode)(*file, error)  
+  ```
+  func Write() {
+    file,err := os.OpenFile("./1.txt",os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+    if err!= nil{
+      //处理报错
+    }
+    defer file.Close()
+    str := "输入的字符串"
+    file.Write([]byte(str)) //[]byte
+    file.WriteString("输入的字符串") //string
+
+  }
+
+  ``` 
+
+### 反射
+- 程序运行时访问，检测，修改自身的能力  
+  所有的接口都包含value与type， reflect.TypeOf 与 reflect.ValueOf可以将信息从接口中剥离出来  
+  还可以使用方法修改接口中的数据
+  ```
+  func reflectSetValue(x interface[]){
+    v := reflect.ValueOf(x)
+    k := v.Elem().kind //type是具体的类型信息:int32,[]string... kind则是更基础的分类: Int,Slice...
+    switch k{
+      case reflect.Int32:
+        v.Elem().setInt(100)//函数为值传递，需要用指针修改值
+      case reflect.Float32:
+        v.Elem().SetFloat(9.99)
+    }
+  }
+  ```
+  使用IsNil()判断指针是否为空，使用IsValid()判断返回值是否有效
+- 结构体反射：通过反射得到结构体数据后，可以通过索引获取其字段信息，也可以通过字段名来获取字段信息
+  ```
+  type student struct {
+	Name  string `json:"name"`
+	Score int    `json:"score"`
+  }
+
+  func main() {
+	  stu1 := student{
+		Name:  "A",
+		Score: 90,
+	}
+
+	t := reflect.TypeOf(stu1)
+	fmt.Println(t.Name(), t.Kind()) // student struct
+	// 通过for循环遍历结构体的所有字段信息
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		fmt.Printf("name:%s index:%d type:%v json tag:%v\n", field.Name, field.Index, field.Type, field.Tag.Get("json"))
+	}
+
+	// 通过字段名获取指定结构体字段信息
+	if scoreField, ok := t.FieldByName("Score"); ok {
+		fmt.Printf("name:%s index:%d type:%v json tag:%v\n", scoreField.Name, scoreField.Index, scoreField.Type, scoreField.Tag.Get("json"))
+    }
+  }
+  ```
+- 反射的缺点：  
+  反射中的类型错误在运行时才会引发panic  
+  大量使用反射难以理解  
+  反射会导致性能低下
+### 并发
+
+- 并行 并发 与 串行：  
+  并发：同一时间段内执行多个任务  
+  并行：同一时刻执行多个任务  
+  穿行：依次执行任务
+- 进程，线程和协程：  
+  进程(process)：程序在操作系统中的一次执行过程，系统进行资源分配和调度的一个独立单位  
+  线程(thread)：操作系统基于进程开启的轻量级进程，是操作系统调度执行的最小单位  
+  协程(coroutine)：非操作系统提供而是由用户自行创建和控制的用户态‘线程’，比线程更轻量级
+  ```
+  // 声明全局等待组变量
+  var wg sync.WaitGroup
+
+  //创建单个goroutine
+  func hello() {
+	  fmt.Println("hello")
+	  wg.Done() // 告知当前goroutine完成
+  }
+
+  func main() {
+	  wg.Add(1) // 登记1个goroutine
+	  go hello()
+	  fmt.Println("你好")
+	  wg.Wait() // 阻塞等待登记的goroutine完成
+  }
+  //创建多个goroutine
+  func hello(i int) {
+	  defer wg.Done() // goroutine结束就登记-1
+	  fmt.Println("hello", i)
+  }
+  func main() {
+	  for i := 0; i < 10; i++ {
+		  wg.Add(1) // 启动一个goroutine就登记+1
+		  go hello(i)
+	  }
+	  wg.Wait() // 等待所有登记的goroutine都结束
+  }
+  ```
+- channel：一种实现不同goroutine之间通信交流的通信机制  
+  ```
+  var 变量名 chan 数据类型
+  make(chan 元素类型，[缓冲区大小])
+  ch <- 10 // 把10发送到ch中
+  x := <- ch // 从ch中接收值并赋值给变量x
+  <-ch       // 从ch中接收值，忽略结果
+  close(ch)
+  ```
+- 使用无缓冲的通道时必须要指定接收方，否则会死锁
+  ```
+  func recv(c chan int) {
+	  ret := <-c
+	  fmt.Println("接收成功", ret)
+  }
+
+  func main() {
+	  ch := make(chan int)
+	  go recv(ch) // 创建一个 goroutine 从通道接收值
+	  ch <- 10
+	  fmt.Println("发送成功")
+  }
+  ```
+  ```
+  //channel 与 goroutine的组合运用：
+  //将1-100的数输入ch1
+  func1 f1(ch chan int){
+    for i:=0;i<100;i++{
+      ch <- i
+    }
+    close(ch)
+  }
+  //从h1中读取数字，计算乘方后输入h2
+  func f2(ch1 chan int, ch2 chan int){
+    for{
+      tmp, ok := <- ch1
+      if ok{
+        break
+      }
+      ch2<- tmp*tmp
+    }
+    close(ch2)
+  }
+  func main(){
+    ch1 := make(chan int,100)
+    ch2 := make(chan int,100)//初始化内存
+
+    go f1(ch1)
+    go f2(ch1,ch2)
+    for ret:= range ch2{
+      fmt.Println(ret)//遍历ch2并输出
+    }
+  }
+
+  ```
+- 单向通道：可以在函数的参数中声明函数通道的行为是只读/读写....
+- SELECT
+  ```
+  //基本格式
+  select {
+    case <-ch1:
+    case data := <-ch2:
+    case ch3 <- 10:
+    default:
+  }
+  //运用：输出1-10的奇数
+
+  func main() {
+	  ch := make(chan int, 1)
+	  for i := 1; i <= 10; i++ {
+		  select {
+		  case x := <-ch:
+			  fmt.Println(x)
+		  case ch <- i:
+		  }
+	  }
+  }
+  ```
+  第一次循环时i = 1,ch为空，无法读取故输入，第二次i=2，ch满，无法写入故读取.....
+- 并发安全和锁  
+  同时多个进程修改同一个数据时会存在数据竞争，导致结果与预期不符，可以用锁来解决这一问题。`lock sync.Mutex` 可以保证同一时间有且仅有一个goroutine进入临界区  
+  锁包含互斥锁与读写互斥锁，当读多写少的时候，使用读写锁可以显著提升性能。
+
+### socket
+应用层与传输层间的抽象软件层，将复杂的TCP/IP协议隐藏，让用户只需要调用socket规定的相关函数就可以进行通信
+- go语言实现TCP通信：  
+  一个TCP服务端可以连接多个用户端，因此每建立一个链接就可以创建一个goroutine去处理
+- 使用go语言的net包创建的TCP服务端代码
+  ```
+  // tcp/server/main.go
+
+  // TCP server端
+
+  // 处理函数
+  func process(conn net.Conn) {
+	  defer conn.Close() // 关闭连接
+	  for {
+		  reader := bufio.NewReader(conn)
+		  var buf [128]byte
+		  n, err := reader.Read(buf[:]) // 读取数据
+		  if err != nil {
+			  fmt.Println("read from client failed, err:", err)
+			  break
+		  }
+		  recvStr := string(buf[:n])
+		  fmt.Println("收到client端发来的数据：", recvStr)
+		  conn.Write([]byte(recvStr)) // 发送数据
+	  }
+  }
+
+  func main() {
+	  listen, err := net.Listen("tcp", "127.0.0.1:20000")//监听
+	  if err != nil {
+		  fmt.Println("listen failed, err:", err)
+		  return
+	  }
+	  for {
+		  conn, err := listen.Accept() // 建立连接
+		  if err != nil {
+			  fmt.Println("accept failed, err:", err)
+			  continue
+		  }
+		  go process(conn) // 启动一个goroutine处理连接
+	  }
+  }
+  ```
+- 使用go语言创建的客户端TCP代码
+  ```
+  // tcp/client/main.go
+
+  // 客户端
+  func main() {
+	  conn, err := net.Dial("tcp", "127.0.0.1:20000")
+	  if err != nil {
+		  fmt.Println("err :", err)
+		  return
+	  }
+	  defer conn.Close() // 关闭连接
+	  inputReader := bufio.NewReader(os.Stdin)
+	  for {
+		  input, _ := inputReader.ReadString('\n') // 读取用户输入
+		  inputInfo := strings.Trim(input, "\r\n")
+		  if strings.ToUpper(inputInfo) == "Q" { // 如果输入q就退出
+			  return
+		  }
+		  _, err = conn.Write([]byte(inputInfo)) // 发送数据
+		  if err != nil {
+			  return
+		  }
+		  buf := [512]byte{}
+  		n, err := conn.Read(buf[:])
+	  	if err != nil {
+	  		fmt.Println("recv failed, err:", err)
+	  		return
+	  	}
+	  	fmt.Println(string(buf[:n]))
+	  }
+  }
+  ```
