@@ -91,3 +91,96 @@ go的测试覆盖率
 `-coverprofile = 文件名`将覆盖率相关的记录信息输出到一个文件，可以使用cover工具处理记录，查看哪些语句块被覆盖了
 
 ## 网络测试
+编写 测试在代码中请求外部API的场景=>调用其他服务获取返回值 的单元测试
+如果不想在测试过程中真正发送请求或者依赖的外部接口还没有开发完成是，可以在单元测试中对依赖的API进行mock
+
+```
+
+func TestGetResultByAPI(t *testing.T) {
+	defer gock.Off() // 测试执行后刷新挂起的mock
+
+	// mock 请求外部api时传参x=1返回100
+	gock.New("http://your-api.com").
+		Post("/post").
+		MatchType("json").
+		JSON(map[string]int{"x": 1}).
+		Reply(200).
+		JSON(map[string]int{"value": 100})
+
+	// 调用我们的业务函数
+	res := GetResultByAPI(1, 1)
+	// 校验返回结果是否符合预期
+	assert.Equal(t, res, 101)
+
+	// mock 请求外部api时传参x=2返回200
+	gock.New("http://your-api.com").
+		Post("/post").
+		MatchType("json").
+		JSON(map[string]int{"x": 2}).
+		Reply(200).
+		JSON(map[string]int{"value": 200})
+
+	// 调用我们的业务函数
+	res = GetResultByAPI(2, 2)
+	// 校验返回结果是否符合预期
+	assert.Equal(t, res, 202)
+
+	assert.True(t, gock.IsDone()) // 断言mock被触发
+}
+
+```
+
+## MySQL和Redis测试
+
+sqlmock 一个实现sql/driver的mock库。 不需要建立真正的数据库连接就可以在测试中模拟任何sql驱动程序的行为
+```
+// app.go
+package main
+
+import "database/sql"
+
+// recordStats 记录用户浏览产品信息
+func recordStats(db *sql.DB, userID, productID int64) (err error) {
+	// 开启事务
+	// 操作views和product_viewers两张表
+	tx, err := db.Begin()
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		switch err {
+		case nil:
+			err = tx.Commit()
+		default:
+			tx.Rollback()
+		}
+	}()
+
+	// 更新products表
+	if _, err = tx.Exec("UPDATE products SET views = views + 1"); err != nil {
+		return
+	}
+	// product_viewers表中插入一条数据
+	if _, err = tx.Exec(
+		"INSERT INTO product_viewers (user_id, product_id) VALUES (?, ?)",
+		userID, productID); err != nil {
+		return
+	}
+	return
+}
+
+func main() {
+	// 注意：测试的过程中并不需要真正的连接
+	db, err := sql.Open("mysql", "root@/blog")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+	// userID为1的用户浏览了productID为5的产品
+	if err = recordStats(db, 1 /*some user id*/, 5 /*some product id*/); err != nil {
+		panic(err)
+	}
+}
+
+```

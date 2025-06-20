@@ -428,6 +428,44 @@ func
 
 ### 输入输出
 
+- printf 格式化输出
+- 输入函数 scanf, scan scanln 的区别
+
+  scan: 自由分隔输入  
+  以任意空白符分隔输入，不检查格式，直接按变量类型解析。  
+  输入可以跨多行，直到填满所有变量
+  ```
+  var a, b int
+  fmt.Scan(&a,&b) //读取并储存
+  fmt.Println(a,b) //输出
+  ```
+
+  scanf: 格式化严格匹配  
+  按照格式字符串解析输入，必须完全匹配格式
+  可以用于处理严格格式化的输入(配置文件/日志)
+  ```
+  var name string
+  var age int
+  fmt.Scanf("Name: %s Age: %d", &name, &age) // 必须输入 "Name: Alice Age: 25"
+  fmt.Println(name, age)                    
+  ```
+
+  Scanln: 单行读取
+  以任意空白符分隔，但必须遇到换行符才结束  
+  输入不足会阻塞等待换行，
+  换行符后的剩余输入被丢弃
+  ```
+  var x, y string
+  fmt.Scanln(&x, &y)  // 输入 "Hello World" + 回车
+  fmt.Println(x, y)   // 输出: Hello World
+
+  // 输入 "Hello\nWorld" 则只读取 "Hello"（因为遇到换行）
+  ```
+
+  所有函数均返回(n,err),n是成功解析的参数数量
+
+  
+
 ### 文件操作
 - ```
   file,err := os.Open(./xx.txt=>相对可执行程序路径下的xx.txt文件)(只读)

@@ -474,6 +474,46 @@ func main() {
     fmt.Println("HMAC-SHA1:", hmacHex)
 }
 ```
+## 标准库log
+- log包实现了简单的日志服务，定义了logger类型并提供格式化输出的方法
+  ```
+  func main(){
+    log.Println("这是一条日志。")
+    log.Fatalln("这是一条会触发fatal的日志")
+    log.Panicln("这是一条会触发panic的日志")
+  }
+  ```
+- 配置logger
+  flags 函数会返回标准logger的输出配置，SetFlags 函数设置标准logger的输出配置
+- 配置日志前缀
+  Prefix 函数用来查看标准logger的输出前缀，SetPrefix用来设置输出前缀
+  ```
+  func main(){
+    log.SetPrefix("[前缀]")
+    log.Println("正文")//输出结果[前缀]------(日期): 正文
+  }
+  ```
+- 配置日志输出位置 
+  SetOutput 函数用来设置标准的输出目的地。
+  ```
+  func main(){
+    logFile, err := os.OpenFile("./xx.log", os.O_CREATE|os.O_WORNLY|os.O_APPEND, 0644)
+    if err != nil {
+      fmt.Println("open log file failed,err:",err)
+      return
+    }
+    log.SetOutput(logFile)
+    log.Println("")
+  }
+  ```
+  该代码会把日志输出到同目录下的`xx.log`文件中  
+  在标准的logger操作中，单独将配置操作写道init函数中
+- 创建logger
+  创建新logger对象的构造函数new
+  ```
+  func New(out io.Writer, prefix string, flag int) *Logger
+  ```
+  new 创建一个logger对象， 参数out设置日志信息写入的目的地， prefix添加到生成的每一条日志前面，flag定义日志的属性
 
 ## 第三方日志库logrus
 - go语言生成的日志的内容
